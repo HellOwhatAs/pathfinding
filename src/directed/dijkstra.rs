@@ -1,7 +1,7 @@
 //! Compute a shortest path using the [Dijkstra search
 //! algorithm](https://en.wikipedia.org/wiki/Dijkstra's_algorithm).
 
-use super::reverse_path;
+use super::{reverse_path, reverse_path_eid};
 use crate::FxIndexMap;
 use indexmap::map::Entry::{Occupied, Vacant};
 use num_traits::Zero;
@@ -84,6 +84,23 @@ where
     dijkstra_internal(start, &mut successors, &mut success)
 }
 
+/// 
+pub fn dijkstra_eid<N, C, FN, IN, FS, EID>(
+    start: &N,
+    mut successors: FN,
+    mut success: FS,
+) -> Option<(Vec<EID>, C)>
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    dijkstra_internal_eid(start, &mut successors, &mut success)
+}
+
 pub(crate) fn dijkstra_internal<N, C, FN, IN, FS>(
     start: &N,
     successors: &mut FN,
@@ -100,6 +117,28 @@ where
     reached.map(|target| {
         (
             reverse_path(&parents, |&(p, _)| p, target),
+            parents.get_index(target).unwrap().1 .1,
+        )
+    })
+}
+
+pub(crate) fn dijkstra_internal_eid<N, C, FN, IN, FS, EID>(
+    start: &N,
+    successors: &mut FN,
+    success: &mut FS,
+) -> Option<(Vec<EID>, C)>
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    let (parents, reached) = run_dijkstra_eid(start, successors, success);
+    reached.map(|target| {
+        (
+            reverse_path_eid(&parents, |&(p, _, eid)| (p, eid), target),
             parents.get_index(target).unwrap().1 .1,
         )
     })
@@ -153,6 +192,18 @@ where
     dijkstra_partial(start, successors, |_| false).0
 }
 
+/// 
+pub fn dijkstra_all_eid<N, C, FN, IN, EID>(start: &N, successors: FN) -> HashMap<N, (N, C, Option<EID>)>
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C, EID)>,
+    EID: Copy
+{
+    dijkstra_partial_eid(start, successors, |_| false).0
+}
+
 /// Determine some reachable nodes from a starting point as well as the minimum cost to
 /// reach them and a possible optimal parent node
 /// using the [Dijkstra search algorithm](https://en.wikipedia.org/wiki/Dijkstra's_algorithm).
@@ -188,6 +239,31 @@ where
             .iter()
             .skip(1)
             .map(|(n, (p, c))| (n.clone(), (parents.get_index(*p).unwrap().0.clone(), *c))) // unwrap() cannot fail
+            .collect(),
+        reached.map(|i| parents.get_index(i).unwrap().0.clone()),
+    )
+}
+
+/// 
+pub fn dijkstra_partial_eid<N, C, FN, IN, FS, EID>(
+    start: &N,
+    mut successors: FN,
+    mut stop: FS,
+) -> (HashMap<N, (N, C, Option<EID>)>, Option<N>)
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    let (parents, reached) = run_dijkstra_eid(start, &mut successors, &mut stop);
+    (
+        parents
+            .iter()
+            .skip(1)
+            .map(|(n, (p, c, eid))| (n.clone(), (parents.get_index(*p).unwrap().0.clone(), *c, *eid))) // unwrap() cannot fail
             .collect(),
         reached.map(|i| parents.get_index(i).unwrap().0.clone()),
     )
@@ -234,6 +310,63 @@ where
                     if e.get().1 > new_cost {
                         n = e.index();
                         e.insert((index, new_cost));
+                    } else {
+                        continue;
+                    }
+                }
+            }
+
+            to_see.push(SmallestHolder {
+                cost: new_cost,
+                index: n,
+            });
+        }
+    }
+    (parents, target_reached)
+}
+
+fn run_dijkstra_eid<N, C, FN, IN, FS, EID>(
+    start: &N,
+    successors: &mut FN,
+    stop: &mut FS,
+) -> (FxIndexMap<N, (usize, C, Option<EID>)>, Option<usize>)
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    let mut to_see = BinaryHeap::new();
+    to_see.push(SmallestHolder {
+        cost: Zero::zero(),
+        index: 0,
+    });
+    let mut parents: FxIndexMap<N, (usize, C, Option<EID>)> = FxIndexMap::default();
+    parents.insert(start.clone(), (usize::max_value(), Zero::zero(), None));
+    let mut target_reached = None;
+    while let Some(SmallestHolder { cost, index }) = to_see.pop() {
+        let successors = {
+            let (node, _) = parents.get_index(index).unwrap();
+            if stop(node) {
+                target_reached = Some(index);
+                break;
+            }
+            successors(node)
+        };
+        for (successor, move_cost, eid) in successors {
+            let new_cost = cost + move_cost;
+            let n;
+            match parents.entry(successor) {
+                Vacant(e) => {
+                    n = e.index();
+                    e.insert((index, new_cost, Some(eid)));
+                }
+                Occupied(mut e) => {
+                    if e.get().1 > new_cost {
+                        n = e.index();
+                        e.insert((index, new_cost, Some(eid)));
                     } else {
                         continue;
                     }

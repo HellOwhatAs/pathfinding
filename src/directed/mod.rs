@@ -35,3 +35,25 @@ where
     // unfold iterator is not double-ended due to its iterative nature.
     path.into_iter().rev().cloned().collect()
 }
+
+fn reverse_path_eid<N, V, F, EID>(parents: &FxIndexMap<N, V>, mut parent: F, start: usize) -> Vec<EID>
+where
+    N: Eq + Hash + Clone,
+    F: FnMut(&V) -> (usize, Option<EID>),
+    EID: Copy
+{
+    let mut i = start;
+    let path = std::iter::from_fn(|| {
+        parents.get_index(i).map(|(_, value)| {
+            // i = parent(value);
+            let tmp = parent(value);
+            i = tmp.0;
+            tmp.1
+        })
+    })
+    .filter_map(|e| e)
+    .collect::<Vec<EID>>();
+    // Collecting the going through the vector is needed to revert the path because the
+    // unfold iterator is not double-ended due to its iterative nature.
+    path.into_iter().rev().collect()
+}
