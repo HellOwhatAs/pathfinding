@@ -1,7 +1,7 @@
 //! Compute a shortest path using the [breadth-first search
 //! algorithm](https://en.wikipedia.org/wiki/Breadth-first_search).
 
-use super::reverse_path;
+use super::{reverse_path, reverse_path_eid};
 use crate::{FxIndexMap, FxIndexSet};
 use indexmap::map::Entry::Vacant;
 use std::hash::Hash;
@@ -100,6 +100,53 @@ where
             }
             if let Vacant(e) = parents.entry(successor) {
                 e.insert(i);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// 
+pub fn bfs_eid<N, FN, IN, FS, EID>(start: &N, successors: FN, success: FS) -> Option<Vec<EID>>
+where
+    N: Eq + Hash + Clone,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    bfs_core_eid(start, successors, success, true)
+}
+
+fn bfs_core_eid<N, FN, IN, FS, EID>(
+    start: &N,
+    mut successors: FN,
+    mut success: FS,
+    check_first: bool,
+) -> Option<Vec<EID>>
+where
+    N: Eq + Hash + Clone,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, EID)>,
+    FS: FnMut(&N) -> bool,
+    EID: Copy
+{
+    if check_first && success(start) {
+        return Some(vec![]);
+    }
+    let mut i = 0;
+    let mut parents: FxIndexMap<N, (usize, Option<EID>)> = FxIndexMap::default();
+    parents.insert(start.clone(), (usize::max_value(), None));
+    while let Some((node, _)) = parents.get_index(i) {
+        for (successor, eid) in successors(node) {
+            if success(&successor) {
+                let mut path = reverse_path_eid(&parents, |&p| p, i);
+                path.push(eid);
+                return Some(path);
+            }
+            if let Vacant(e) = parents.entry(successor) {
+                e.insert((i, Some(eid)));
             }
         }
         i += 1;
