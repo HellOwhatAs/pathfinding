@@ -1,4 +1,23 @@
 
+v4.9.1 / 2024-02-12
+==================
+
+  * fix(README): inline documentation to fix inner links to modules
+  * fix(deps): update rust crate indexmap to 2.2.3
+  * fix(deps): update rust crate thiserror to 1.0.57
+
+v4.9.0 / 2024-02-11
+==================
+
+  * feat(matrix): add in-place matrix transposition for non-square matrix
+  * feat(bench): add bench for matrix transposition
+  * feat(tests): add a test for transposing an empty matrix
+  * fix(deps): add priority to clippy lints for lint_groups_priority
+  * chore(grid): replace deprecated IndexMap remove() method by swap_remove()
+  * fix(deps): update rust crate num-traits to 0.2.18
+  * fix(deps): update rust crate indexmap to 2.2.2
+  * chore(deps): update rust crate itertools to 0.12.1
+
 v4.8.2 / 2024-01-14
 ==================
 

@@ -228,17 +228,28 @@ fn no_rows_transposed_panic() {
 }
 
 #[test]
-fn transpose_in_place() {
+fn transpose_in_place_square() {
     let mut m = matrix![[0, 1, 2], [3, 4, 5], [6, 7, 8]];
     m.transpose();
     assert_eq!(m, matrix![[0, 3, 6], [1, 4, 7], [2, 5, 8]]);
 }
 
 #[test]
-#[should_panic(expected = "attempt to transpose a non-square matrix")]
-fn transpose_in_place_panic() {
+fn transpose_in_place_non_square() {
+    let mut m = matrix![[0, 1, 2]];
+    m.transpose();
+    assert_eq!(m, matrix![[0], [1], [2]]);
+
     let mut m = matrix![[0, 1, 2], [3, 4, 5]];
     m.transpose();
+    assert_eq!(m, matrix![[0, 3], [1, 4], [2, 5]]);
+}
+
+#[test]
+fn transpose_in_place_empty() {
+    let mut m: Matrix<u8> = matrix![];
+    m.transpose();
+    assert_eq!(m, matrix![]);
 }
 
 fn sum(slice: &[usize]) -> usize {
