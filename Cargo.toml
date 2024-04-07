@@ -22,12 +22,11 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-fixedbitset = "0.4.2"
 num-traits = "0.2.18"
-indexmap = "2.2.3"
+indexmap = "2.2.6"
 rustc-hash = "1.1.0"
 integer-sqrt = "0.1.5"
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 deprecate-until = "0.1.1"
 
 [dev-dependencies]
@@ -40,8 +39,8 @@ rand = "0.8.5"
 rand_xorshift = "0.3.0"
 # Not a real dependency, but needed since criterion 0.4.0
 # does not compile anymore as of 2022-10-03.
-regex = "1.10.3"
-trybuild = "1.0.89"
+regex = "1.10.4"
+trybuild = "1.0.91"
 version_check = "0.9.4"
 
 [lints.clippy]
